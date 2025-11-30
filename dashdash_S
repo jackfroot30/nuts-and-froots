@@ -1,4 +1,4 @@
-```import sys
+import sys
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPushButton,
                              QCompleter, QWidget, QHBoxLayout, 
                              QFrame, QListView, QVBoxLayout,
@@ -6,6 +6,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QPushButton,
 from PyQt6 import uic, QtGui
 from PyQt6.QtCore import Qt, QDate, QPropertyAnimation, pyqtSignal
 import pandas as pd
+import sqlite3
+import database
 
 class StartScreen(QMainWindow):
     def __init__(self):
@@ -122,11 +124,16 @@ class MainWindow(QMainWindow):
         self.prot_counter.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.carbs_counter.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.fats_counter.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.counters()
-        self.cal_counter.setText(f"{str(self.calories)}")
-        self.prot_counter.setText(f"{str(self.protein)}g")
-        self.carbs_counter.setText(f"{str(self.carbs)}g")
-        self.fats_counter.setText(f"{str(self.fats)}g")
+        self.rows = []
+        self.total_cal = 0
+        self.total_prot = 0
+        self.total_carbs = 0
+        self.total_fat = 0
+        self.update_totals()
+        self.cal_counter.setText(f"{self.total_cal:.0f} kcal")
+        self.prot_counter.setText(f"{self.total_prot:.1f} g")
+        self.carbs_counter.setText(f"{self.total_carbs:.1f} g")
+        self.fats_counter.setText(f"{self.total_fat:.1f} g")
         self.scrollArea.setWidgetResizable(True)
         self.scroll_contents.setMinimumHeight(1400)
         self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -147,9 +154,10 @@ class MainWindow(QMainWindow):
         self.ingr_add.setLayout(self.ingredients_layout)
         self.ingredients_layout.setContentsMargins(10,10,10,10)
         self.ingredients_layout.setSpacing(10)
-        
         self.search_bar.returnPressed.connect(self.fetch_data)
+        self.save_recipe_btn.clicked.connect(self.save_recipe)
         self.show()
+
     def counters(self):
         self.rows = []
         self.calories = 0
@@ -218,6 +226,19 @@ class MainWindow(QMainWindow):
         self.ingredients_layout.addWidget(row)
         self.update_totals()
     
+    def save_recipe(self):
+        recipe_name = "My Recipe"
+        for row in self.rows:
+            macros = row.macros
+            qty = row.qty.value()
+            self.save_to_db(recipe_name, row.name,{
+                "cal": float(macros["cal"])*qty,
+                "prot": float(macros["prot"])*qty,
+                "carbs": float(macros["carbs"])*qty,
+                "fat": float(macros["fat"])*qty
+            })
+        print("Recipe saved")
+    
     def remove_row(self, row):
         self.ingredients_layout.removeWidget(row)
         self.rows.remove(row)
@@ -229,14 +250,37 @@ class MainWindow(QMainWindow):
         for row in self.rows:
             qty = row.qty.value()
             macros = row.macros
-            self.total_cal += macros["cal"] * qty
-            self.total_prot += macros["prot"] * qty
-            self.total_carbs += macros["carbs"] * qty
-            self.total_fat += macros["fat"] * qty
+            self.total_cal += float(macros["cal"]) * qty
+            self.total_prot += float(macros["prot"]) * qty
+            self.total_carbs += float(macros["carbs"]) * qty
+            self.total_fat += float(macros["fat"]) * qty
         self.cal_counter.setText(f"{self.total_cal} kcal")
         self.prot_counter.setText(f"{self.total_prot} g")
         self.carbs_counter.setText(f"{self.total_carbs} g")
         self.fats_counter.setText(f"{self.total_fat} g")
+    
+    def save_to_db(self,recipe_name,name,macros):
+        conn = sqlite3.connect("recipes.db")
+        curr = conn.cursor()
+        curr.execute("""
+            INSERT INTO recipe_ingredients (recipe_name, ingredient, calories, protein, carbs, fat)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (recipe_name,
+             name,
+             macros["cal"], macros["prot"], macros["carbs"], macros["fat"])
+             )
+        conn.commit()
+        curr.close()
+
+    def load_recipe(self, recipe_name):
+        conn = sqlite3.connect("recipes.db")
+        curr = conn.cursor()
+        curr.execute("SELECT ingredient, calories, protein, carbs, fat FROM recipe_ingredients WHERE recipe_name=?", (recipe_name,))
+        rows = curr.fetchall()
+        conn.close()
+        return rows 
+    
     def open_Scanner(self):
         self.window = Scanner()
         self.window.show()
@@ -262,9 +306,12 @@ class IngredientAdd(QWidget):
         self.remove_btn.clicked.connect(lambda: self.removed.emit(self))
         layout.addWidget(self.name_lbl)
         self.name_lbl.setMinimumSize(520,20)
+        self.name_lbl.setMaximumHeight(40)
         layout.addStretch()
         layout.addWidget(self.qty)
+        self.qty.setMaximumHeight(40)
         layout.addWidget(self.unit_lbl)
+        self.unit_lbl.setMaximumHeight(40)
         layout.addWidget(self.remove_btn)
 
 class HoverButton(QPushButton):
@@ -301,4 +348,3 @@ if __name__=="__main__":
     app = QApplication(sys.argv)
     window = StartScreen()
     sys.exit(app.exec())
-```
