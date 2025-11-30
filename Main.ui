@@ -284,30 +284,6 @@ padding-left:142
          <string/>
         </property>
        </widget>
-       <widget class="QLabel" name="carb_2">
-        <property name="geometry">
-         <rect>
-          <x>80</x>
-          <y>580</y>
-          <width>761</width>
-          <height>311</height>
-         </rect>
-        </property>
-        <property name="styleSheet">
-         <string notr="true">QLabel{
-background-color:white;
-border: 1px solid #C0C0C0;
-border-radius:10px;
-font:30px &quot;Epilogue&quot;;
-color:#1D1D1D;
-padding-bottom:220;
-padding-left:10
-}</string>
-        </property>
-        <property name="text">
-         <string>Today's Meals</string>
-        </property>
-       </widget>
        <widget class="QPushButton" name="scan_btn">
         <property name="geometry">
          <rect>
@@ -328,7 +304,7 @@ padding-left:10
          <string>Scan Food</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="pushButton_2">
+       <widget class="QPushButton" name="recipe_t">
         <property name="geometry">
          <rect>
           <x>80</x>
@@ -350,25 +326,53 @@ padding-left:10
          <string>Recipes</string>
         </property>
        </widget>
-       <widget class="QLabel" name="label_2">
+       <widget class="QWidget" name="verticalLayoutWidget">
         <property name="geometry">
          <rect>
-          <x>100</x>
-          <y>640</y>
-          <width>121</width>
-          <height>31</height>
+          <x>80</x>
+          <y>570</y>
+          <width>761</width>
+          <height>331</height>
          </rect>
         </property>
-        <property name="styleSheet">
-         <string notr="true">QLabel{
-	background-color:white;
-	font:200 12px &quot;Epilogue&quot;;
-	color:#C0C0C0
+        <layout class="QVBoxLayout" name="meal_log">
+         <item>
+          <widget class="QWidget" name="meal_log_widget" native="true">
+           <property name="styleSheet">
+            <string notr="true">QWidget{
+font: 400 20px &quot;Epilogue&quot;;
+color:#1d1d1d;
+border-radius:10px;
+background-color:rgb(242, 242, 242);
+border:1px solid #c0c0c0
 }</string>
-        </property>
-        <property name="text">
-         <string>No logged in recipes</string>
-        </property>
+           </property>
+           <widget class="QLabel" name="label_2">
+            <property name="geometry">
+             <rect>
+              <x>10</x>
+              <y>10</y>
+              <width>171</width>
+              <height>51</height>
+             </rect>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QLabel{
+font: 300 25px &quot;Epilogue&quot;;
+color:#1d1d1d;
+background-color:#f2f2f2;
+border:none;
+
+}
+</string>
+            </property>
+            <property name="text">
+             <string>Todays Meals</string>
+            </property>
+           </widget>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </widget>
      </widget>
