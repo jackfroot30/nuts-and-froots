@@ -81,9 +81,7 @@
 font: 8pt  &quot;Epilogue&quot;;
 background-color:rgb(255,255,255)					
 }
-QPushButton:hover {
-background-color:pink;
-}</string>
+</string>
    </property>
    <property name="text">
     <string>Start</string>
@@ -350,3 +348,4 @@ QSpinBox::up-button:hover, QSpinBox::down-button:hover {
  <resources/>
  <connections/>
 </ui>
+
