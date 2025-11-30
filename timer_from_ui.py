@@ -18,12 +18,10 @@ class UiTimer(QWidget):
         self.timer = QTimer(self)
         self.timer.setInterval(10)
         self.timer.timeout.connect(self._tick)
-        #timer object of QTimer (a cclass), the timeout function calls the function in connect(connect attaches a fn to the signal emitted by timeout, the signal is emitted after a certain interval, which is defined in line 19 as 10 ms) 
 
         self.pushButton.clicked.connect(self.start)
         self.pushButton_2.clicked.connect(self.pause)
         self.pushButton_3.clicked.connect(self.reset)
-        # 
 
         self.pushButton_2.setEnabled(False)
 
@@ -93,3 +91,4 @@ if __name__ == "__main__":
     w = UiTimer("timer_ui.ui")
     w.show()
     sys.exit(app.exec_())
+
