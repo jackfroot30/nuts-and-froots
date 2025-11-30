@@ -1,0 +1,304 @@
+```import sys
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QPushButton,
+                             QCompleter, QWidget, QHBoxLayout, 
+                             QFrame, QListView, QVBoxLayout,
+                             QButtonGroup, QLabel, QSpinBox)
+from PyQt6 import uic, QtGui
+from PyQt6.QtCore import Qt, QDate, QPropertyAnimation, pyqtSignal
+import pandas as pd
+
+class StartScreen(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        uic.loadUi("HomeScreen.ui",self)
+        start_btn = self.start_btn
+        self.start_btn = HoverButton(start_btn.text(), start_btn.parent())
+        self.start_btn.setGeometry(start_btn.geometry())
+        self.start_btn.setStyleSheet(start_btn.styleSheet())      
+        self.start_btn.setFont(start_btn.font())                  
+        self.start_btn.setSizePolicy(start_btn.sizePolicy())      
+        self.start_btn.setCursor(start_btn.cursor())        
+        start_btn.hide()
+        self.start_btn.show()
+        self.start_btn.clicked.connect(self.profile_info)
+        self.food_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label_f.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.recipe_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label_r.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.progress_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.workout_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.scrollArea.setWidgetResizable(True)
+        self.page_contents.setMinimumHeight(1000)
+        self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.layout = QVBoxLayout(self.page_contents)
+        self.show()
+
+    def profile_info(self):
+
+        self.win = Profile()
+        self.win.show()
+        self.hide()
+
+
+class Profile(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        uic.loadUi("Profile.ui",self)
+        view1 = QListView()
+        view2 = QListView()
+        view1.setFrameShape(QFrame.Shape.NoFrame)
+        view2.setFrameShape(QFrame.Shape.NoFrame)
+        profile_btn = self.profile_btn
+        self.profile_btn = HoverButton(profile_btn.text(), self)
+        self.profile_btn.setGeometry(profile_btn.geometry())
+        self.profile_btn.setStyleSheet(profile_btn.styleSheet())      
+        self.profile_btn.setFont(profile_btn.font())                  
+        self.profile_btn.setSizePolicy(profile_btn.sizePolicy())      
+        self.profile_btn.setCursor(profile_btn.cursor())        
+        profile_btn.hide()
+        self.profile_btn.clicked.connect(self.main_window)
+        self.show()
+    
+    def main_window(self):
+        self.win = MainWindow()
+        self.win.show()
+        self.hide()
+        
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        uic.loadUi("Main.ui", self)
+        self.setGeometry(300,0,890,1000)
+        self.df = pd.read_csv("fitness_data.csv")
+        ingredients = self.df['Ingredient']
+        completer = QCompleter(set(ingredients))
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        popup = completer.popup()
+        popup.setMinimumWidth(400)
+        popup.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        popup.setStyleSheet("""
+                            QListView{
+                            background-color:white;
+                            border:1px solid #C0C0C0;
+                            border-radius:10px;
+                            color:#000000;
+                            font: 300 13pt "Epilogue";
+                            padding-left:5px;
+                            min-height:40px;
+                        }
+                        QListView::item
+                        {
+                        background-color: #ebebeb;
+                        font:200 10px "Epilogue";
+                        border:none;
+                        padding:5px;
+                        min-height:30px;
+                        }
+                        QListView::item:hover {
+                        background-color: #C0C0C0;
+                        color: black;
+                }
+        """)
+        self.nav_buttons = QButtonGroup(self)
+        self.nav_buttons.addButton(self.dashboard_btn,0)
+        self.nav_buttons.addButton(self.recipe_btn, 1)
+        self.nav_buttons.addButton(self.exercise_btn, 2)
+        self.nav_buttons.addButton(self.mediation_btn, 3)
+        self.nav_buttons.addButton(self.profile_btn, 4)
+        self.nav_buttons.idClicked.connect(self.tabWidget.setCurrentIndex)
+        self.dashboard_btn.setChecked(True)
+        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.tabBar().hide()
+        self.today = QDate.currentDate()
+        self.date_text = self.today.toString("dddd, MMMM d, yyyy")
+        self.day_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.prog_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        if hasattr(self, "day_lbl"):
+            self.day_lbl.setText(self.date_text)
+        self.cal_counter.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.prot_counter.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.carbs_counter.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.fats_counter.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.counters()
+        self.cal_counter.setText(f"{str(self.calories)}")
+        self.prot_counter.setText(f"{str(self.protein)}g")
+        self.carbs_counter.setText(f"{str(self.carbs)}g")
+        self.fats_counter.setText(f"{str(self.fats)}g")
+        self.scrollArea.setWidgetResizable(True)
+        self.scroll_contents.setMinimumHeight(1400)
+        self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        QVBoxLayout(self.scroll_contents)
+        scan_btn = self.scan_btn
+        self.scan_btn = HoverButton(scan_btn.text(), scan_btn.parent())
+        self.scan_btn.setGeometry(scan_btn.geometry())
+        self.scan_btn.setStyleSheet(scan_btn.styleSheet())      
+        self.scan_btn.setFont(scan_btn.font())                  
+        self.scan_btn.setSizePolicy(scan_btn.sizePolicy())      
+        self.scan_btn.setCursor(scan_btn.cursor())        
+        scan_btn.hide()
+        self.scan_btn.show()
+        self.scan_btn.clicked.connect(self.open_Scanner)
+        if hasattr(self, 'search_bar'):
+            self.search_bar.setCompleter(completer)
+        self.ingredients_layout = QVBoxLayout()
+        self.ingr_add.setLayout(self.ingredients_layout)
+        self.ingredients_layout.setContentsMargins(10,10,10,10)
+        self.ingredients_layout.setSpacing(10)
+        
+        self.search_bar.returnPressed.connect(self.fetch_data)
+        self.show()
+    def counters(self):
+        self.rows = []
+        self.calories = 0
+        self.protein = 0
+        self.carbs = 0 
+        self.fats = 0
+        
+    def fetch_data(self):
+        name = self.search_bar.text().strip().lower()
+        if name == "":
+            return
+        self.df["Ingredient_clean"] = (
+            self.df["Ingredient"]
+            .str.replace('"', '', regex=False)
+            .str.strip()
+            .str.lower()
+        )
+        data = self.df[self.df["Ingredient_clean"].str.contains(name, regex=False)]
+        if data.empty:
+            print("Ingredient not found")
+            return
+        row = data.iloc[0]
+        macros = {
+            "cal": float(row["Calories"]),
+            "prot": float(row["Protein"]),
+            "carbs": float(row["Carbs"]),
+            "fat": float(row["Fat"])
+        }
+        self.add_ingr(row["Ingredient"].replace('"', '').strip(), macros)
+        self.search_bar.clear()
+
+
+    def add_ingr(self, ingredient_name, macros):
+        row = IngredientAdd(ingredient_name, macros)
+        row.setStyleSheet("""
+    QWidget {
+        background-color: #f9f6ff;
+        border-radius: 12px;
+        font: 14px 'Epilogue';
+        color: #1D1D1D
+    }
+    QPushButton {
+        background-color: white;
+        border: 1px solid #d7d7d7; 
+        border-radius: 8px;
+        padding: 6px 10px;
+        color:#1D1D1D
+    }
+    QSpinBox {
+        border: 1px solid #d7d7d7;
+        border-radius: 8px;
+        padding: 4px;
+        color:#1D1D1D
+    }                    
+    QPushButton:hover {
+        background-color: #C0C0C0;
+        border: 1px solid #d7d7d7; 
+        border-radius: 8px;
+        padding: 6px 10px;
+        color:#1D1D1D
+    }
+""")
+        row.change.connect(self.update_totals)
+        row.removed.connect(self.remove_row)
+        self.rows.append(row)
+        self.ingredients_layout.addWidget(row)
+        self.update_totals()
+    
+    def remove_row(self, row):
+        self.ingredients_layout.removeWidget(row)
+        self.rows.remove(row)
+        row.deleteLater()
+        self.update_totals()
+
+    def update_totals(self):
+        self.total_cal = self.total_prot = self.total_carbs = self.total_fat = 0
+        for row in self.rows:
+            qty = row.qty.value()
+            macros = row.macros
+            self.total_cal += macros["cal"] * qty
+            self.total_prot += macros["prot"] * qty
+            self.total_carbs += macros["carbs"] * qty
+            self.total_fat += macros["fat"] * qty
+        self.cal_counter.setText(f"{self.total_cal} kcal")
+        self.prot_counter.setText(f"{self.total_prot} g")
+        self.carbs_counter.setText(f"{self.total_carbs} g")
+        self.fats_counter.setText(f"{self.total_fat} g")
+    def open_Scanner(self):
+        self.window = Scanner()
+        self.window.show()
+        self.hide()
+
+
+class IngredientAdd(QWidget):
+    change = pyqtSignal()
+    removed = pyqtSignal(QWidget)
+    def __init__(self,name,macros,parent=None):
+        super().__init__(parent)
+        self.name = name 
+        self.macros = macros
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0,5,0,5)
+        self.name_lbl = QLabel(name)
+        self.qty = QSpinBox()
+        self.qty.setMinimum(1)
+        self.qty.setMaximum(20)
+        self.qty.valueChanged.connect(self.change.emit)
+        self.unit_lbl = QLabel("x 100g")
+        self.remove_btn = QPushButton("Remove")
+        self.remove_btn.clicked.connect(lambda: self.removed.emit(self))
+        layout.addWidget(self.name_lbl)
+        self.name_lbl.setMinimumSize(520,20)
+        layout.addStretch()
+        layout.addWidget(self.qty)
+        layout.addWidget(self.unit_lbl)
+        layout.addWidget(self.remove_btn)
+
+class HoverButton(QPushButton):
+    def __init__(self,*args):
+        super().__init__(*args)
+        self.base_geometry = None
+
+    def enterEvent(self, event):
+        if self.base_geometry is None:
+            self.base_geometry = self.geometry()
+
+        self.anim = QPropertyAnimation(self, b"geometry")
+        self.anim.setDuration(50)
+        self.anim.setStartValue(self.geometry())
+        self.anim.setEndValue(self.base_geometry.adjusted(-2, -2, 2, 2))  
+        self.anim.start()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.anim = QPropertyAnimation(self, b"geometry")
+        self.anim.setDuration(150)
+        self.anim.setStartValue(self.geometry())
+        self.anim.setEndValue(self.base_geometry)
+        self.anim.start()
+        super().leaveEvent(event)
+
+class Scanner(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.window = QMainWindow()
+
+
+if __name__=="__main__":
+    app = QApplication(sys.argv)
+    window = StartScreen()
+    sys.exit(app.exec())
+```
