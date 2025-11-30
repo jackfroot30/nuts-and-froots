@@ -1,4 +1,4 @@
-import sys
+```import sys
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPushButton,
                              QCompleter, QWidget, QHBoxLayout, 
                              QFrame, QListView, QVBoxLayout,
@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt, QDate, QPropertyAnimation, pyqtSignal
 import pandas as pd
 import sqlite3
 import database
+from datetime import date
 
 class StartScreen(QMainWindow):
     def __init__(self):
@@ -75,10 +76,10 @@ class MainWindow(QMainWindow):
         self.setGeometry(300,0,890,1000)
         self.df = pd.read_csv("fitness_data.csv")
         ingredients = self.df['Ingredient']
-        completer = QCompleter(set(ingredients))
-        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        completer.setFilterMode(Qt.MatchFlag.MatchContains)
-        popup = completer.popup()
+        self.completer = QCompleter(set(ingredients))
+        self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        popup = self.completer.popup()
         popup.setMinimumWidth(400)
         popup.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         popup.setStyleSheet("""
@@ -142,20 +143,30 @@ class MainWindow(QMainWindow):
         self.scan_btn = HoverButton(scan_btn.text(), scan_btn.parent())
         self.scan_btn.setGeometry(scan_btn.geometry())
         self.scan_btn.setStyleSheet(scan_btn.styleSheet())      
-        self.scan_btn.setFont(scan_btn.font())                  
+        self.scan_btn.setFont(scan_btn.font())                      
         self.scan_btn.setSizePolicy(scan_btn.sizePolicy())      
         self.scan_btn.setCursor(scan_btn.cursor())        
         scan_btn.hide()
         self.scan_btn.show()
         self.scan_btn.clicked.connect(self.open_Scanner)
         if hasattr(self, 'search_bar'):
-            self.search_bar.setCompleter(completer)
+            self.search_bar.setCompleter(self.completer)
         self.ingredients_layout = QVBoxLayout()
         self.ingr_add.setLayout(self.ingredients_layout)
         self.ingredients_layout.setContentsMargins(10,10,10,10)
         self.ingredients_layout.setSpacing(10)
         self.search_bar.returnPressed.connect(self.fetch_data)
         self.save_recipe_btn.clicked.connect(self.save_recipe)
+        recipe_t = self.recipe_t
+        self.recipe_t = HoverButton(recipe_t.text(), recipe_t.parent())
+        self.recipe_t.setGeometry(recipe_t.geometry())
+        self.recipe_t.setStyleSheet(recipe_t.styleSheet())      
+        self.recipe_t.setFont(recipe_t.font())                      
+        self.recipe_t.setSizePolicy(recipe_t.sizePolicy())      
+        self.recipe_t.setCursor(recipe_t.cursor())        
+        recipe_t.hide()
+        self.recipe_t.show()
+        self.recipe_t.clicked.connect(lambda : self.tabWidget.setCurrentIndex(1))
         self.show()
 
     def counters(self):
@@ -193,33 +204,37 @@ class MainWindow(QMainWindow):
     def add_ingr(self, ingredient_name, macros):
         row = IngredientAdd(ingredient_name, macros)
         row.setStyleSheet("""
-    QWidget {
-        background-color: #f9f6ff;
-        border-radius: 12px;
-        font: 14px 'Epilogue';
-        color: #1D1D1D
-    }
-    QPushButton {
-        background-color: white;
-        border: 1px solid #d7d7d7; 
-        border-radius: 8px;
-        padding: 6px 10px;
-        color:#1D1D1D
-    }
-    QSpinBox {
-        border: 1px solid #d7d7d7;
-        border-radius: 8px;
-        padding: 4px;
-        color:#1D1D1D
-    }                    
-    QPushButton:hover {
-        background-color: #C0C0C0;
-        border: 1px solid #d7d7d7; 
-        border-radius: 8px;
-        padding: 6px 10px;
-        color:#1D1D1D
-    }
-""")
+            QWidget {
+                background-color: #f9f6ff;
+                border-radius: 12px;
+                font: 14px 'Epilogue';
+                color: #1D1D1D;
+            }
+            QPushButton {
+                background-color: white;
+                border: 1px solid #d7d7d7; 
+                border-radius: 8px;
+                padding: 6px 10px;
+                color: #1D1D1D;
+            }
+            QPushButton:hover {
+                background-color: #C0C0C0;
+            }
+            QSpinBox {
+                border: 1px solid #d7d7d7;
+                border-radius: 8px;
+                padding: 4px;
+                color: #1D1D1D;
+                background-color: white; /* Ensure background is white */
+            }
+            
+            /* THIS HIDES THE WEIRD ARROWS */
+            QSpinBox::up-button, QSpinBox::down-button {
+                width: 0px;
+                border: none;
+                background: transparent;
+            }
+        """)
         row.change.connect(self.update_totals)
         row.removed.connect(self.remove_row)
         self.rows.append(row)
@@ -237,6 +252,7 @@ class MainWindow(QMainWindow):
                 "carbs": float(macros["carbs"])*qty,
                 "fat": float(macros["fat"])*qty
             })
+        self.load_today_meals()
         print("Recipe saved")
     
     def remove_row(self, row):
@@ -250,10 +266,10 @@ class MainWindow(QMainWindow):
         for row in self.rows:
             qty = row.qty.value()
             macros = row.macros
-            self.total_cal += float(macros["cal"]) * qty
-            self.total_prot += float(macros["prot"]) * qty
-            self.total_carbs += float(macros["carbs"]) * qty
-            self.total_fat += float(macros["fat"]) * qty
+            self.total_cal += round(float(macros["cal"]) * qty,2)
+            self.total_prot += round(float(macros["prot"]) * qty,2)
+            self.total_carbs += round(float(macros["carbs"]) * qty,2)
+            self.total_fat += round(float(macros["fat"]) * qty,2)
         self.cal_counter.setText(f"{self.total_cal} kcal")
         self.prot_counter.setText(f"{self.total_prot} g")
         self.carbs_counter.setText(f"{self.total_carbs} g")
@@ -263,12 +279,12 @@ class MainWindow(QMainWindow):
         conn = sqlite3.connect("recipes.db")
         curr = conn.cursor()
         curr.execute("""
-            INSERT INTO recipe_ingredients (recipe_name, ingredient, calories, protein, carbs, fat)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO recipe_ingredients (recipe_name, ingredient, calories, protein, carbs, fat, date)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (recipe_name,
              name,
-             macros["cal"], macros["prot"], macros["carbs"], macros["fat"])
+             macros["cal"], macros["prot"], macros["carbs"], macros["fat"], date.today().isoformat())
              )
         conn.commit()
         curr.close()
@@ -281,11 +297,48 @@ class MainWindow(QMainWindow):
         conn.close()
         return rows 
     
+    def load_today_meals(self):
+        layout = self.meal_log
+        for i in reversed(range(layout.count())):
+            item = layout.itemAt(i)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+            else:
+                layout.removeItem(item)
+        conn = sqlite3.connect("recipes.db")
+        curr = conn.cursor()
+        today = date.today().isoformat()
+        curr.execute("""
+            SELECT DISTINCT recipe_name 
+            FROM recipe_ingredients 
+            WHERE date = ?
+        """, (today,))
+        recipes = curr.fetchall()
+        conn.close()
+        if not recipes:
+            placeholder = QLabel("No recipes logged today")
+            placeholder.setStyleSheet("font-size: 18px; padding: 6px; color: gray;")
+            layout.addWidget(placeholder)
+            return
+        for recipe in recipes:
+            name = recipe[0]
+            label = QLabel(name)
+            label.setStyleSheet("""
+                QWidget{
+            font: 400 20px "Epilogue";
+            color:#1d1d1d;
+            border-radius:10px;
+            background-color:rgb(242, 242, 242);
+            border:1px solid #c0c0c0
+            }
+            """)
+            layout.addWidget(label)
+
     def open_Scanner(self):
         self.window = Scanner()
         self.window.show()
         self.hide()
-
 
 class IngredientAdd(QWidget):
     change = pyqtSignal()
@@ -348,3 +401,4 @@ if __name__=="__main__":
     app = QApplication(sys.argv)
     window = StartScreen()
     sys.exit(app.exec())
+```
