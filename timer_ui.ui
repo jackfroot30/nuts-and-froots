@@ -138,9 +138,6 @@ background-color:rgb(255,255,255)
     <string notr="true">QPushButton {
 font: 8pt  &quot;Epilogue&quot;;
 background-color:rgb(255,255,255)					
-}
-QPushButton:hover {
-background-color:pink;
 }</string>
    </property>
    <property name="text">
@@ -160,9 +157,6 @@ background-color:pink;
     <string notr="true">QPushButton {
 font: 8pt  &quot;Epilogue&quot;;
 background-color:rgb(255,255,255)					
-}
-QPushButton:hover {
-background-color:pink;
 }</string>
    </property>
    <property name="text">
@@ -198,8 +192,6 @@ QSpinBox QLineEdit {
     min-width: 16px;
     min-height: 14px;
 }
-QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-    background-color: pink;
 }*/</string>
    </property>
    <property name="wrapping">
@@ -292,8 +284,6 @@ QSpinBox QLineEdit {
     min-width: 16px;
     min-height: 14px;
 }
-QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-    background-color: pink;
 }*/</string>
    </property>
    <property name="wrapping">
@@ -348,4 +338,5 @@ QSpinBox::up-button:hover, QSpinBox::down-button:hover {
  <resources/>
  <connections/>
 </ui>
+
 
