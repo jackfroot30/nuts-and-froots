@@ -2,13 +2,23 @@ import sys
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPushButton,
                              QCompleter, QWidget, QHBoxLayout, 
                              QFrame, QListView, QVBoxLayout,
-                             QButtonGroup, QLabel, QSpinBox)
+                             QButtonGroup, QLabel, QSpinBox,
+                             QMessageBox)
 from PyQt6 import uic, QtGui
-from PyQt6.QtCore import Qt, QDate, QPropertyAnimation, pyqtSignal
+from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtCore import Qt, QDate, QPropertyAnimation, pyqtSignal,QTimer
 import pandas as pd
 import sqlite3
+from sqlite3 import Error
 import database
 from datetime import date
+import cv2
+import google.generativeai as genai
+from PIL import Image
+import numpy as np
+import time
+import re 
+
 
 class StartScreen(QMainWindow):
     def __init__(self):
@@ -35,10 +45,12 @@ class StartScreen(QMainWindow):
         self.page_contents.setMinimumHeight(1000)
         self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.layout = QVBoxLayout(self.page_contents)
+        self.open = MainWindow()
+        self.food_scan_button.clicked.connect(self.open.open_Scanner)
         self.show()
 
-    def profile_info(self):
 
+    def profile_info(self):
         self.win = Profile()
         self.win.show()
         self.hide()
@@ -61,8 +73,50 @@ class Profile(QMainWindow):
         self.profile_btn.setCursor(profile_btn.cursor())        
         profile_btn.hide()
         self.profile_btn.clicked.connect(self.main_window)
-        self.show()
-    
+        self.init_db()
+        self.save_db()
+        self.line_name.returnPressed.connect(self.save_db)
+        self.line_goal.returnPressed.connect(self.save_db)
+        self.line_height.returnPressed.connect(self.save_db)
+        self.line_age.returnPressed.connect(self.save_db)
+        self.line_weight.returnPressed.connect(self.save_db)
+
+            
+    def init_db(self):
+        connection = sqlite3.connect("entries.db")
+        if connection:
+            try:
+                cursor = connection.cursor()
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS entries (
+                        name TEXT,
+                        age INTEGER,
+                        weight INTEGER,
+                        goal_weight INTEGER,
+                        height INTEGER
+                        )
+                """)
+                connection.commit()
+            except Error as e:
+                print(e)
+                sys.exit(1)
+            finally:
+                connection.close()
+
+    def save_db(self):
+        ipn = self.line_name.text().strip()
+        ipa = self.line_age.text().strip()
+        ipg = self.line_goal.text().strip()
+        ipw = self.line_weight.text().strip()
+        iph = self.line_height.text().strip()
+        connection = sqlite3.connect("entries.db")
+        cursor = connection.cursor()
+        cursor.execute("""INSERT INTO entries (name, age, goal_weight, weight, height)
+    VALUES (?, ?, ?, ?, ?)""", (ipn, ipa, ipg, ipw, iph))
+        connection.commit()
+        connection.close()
+        print('Inserted')
+
     def main_window(self):
         self.win = MainWindow()
         self.win.show()
@@ -166,8 +220,10 @@ class MainWindow(QMainWindow):
         self.recipe_t.setCursor(recipe_t.cursor())        
         recipe_t.hide()
         self.recipe_t.show()
+        self.load_profile()
         self.recipe_t.clicked.connect(lambda : self.tabWidget.setCurrentIndex(1))
-        self.show()
+        
+
 
     def counters(self):
         self.rows = []
@@ -242,7 +298,10 @@ class MainWindow(QMainWindow):
         self.update_totals()
     
     def save_recipe(self):
-        recipe_name = "My Recipe"
+        recipe_name = self.recipe_name_input.text().strip()
+        if recipe_name == "":
+            QMessageBox.warning(self, "Error", "Enter recipe name")
+            return
         for row in self.rows:
             macros = row.macros
             qty = row.qty.value()
@@ -335,6 +394,24 @@ class MainWindow(QMainWindow):
             """)
             layout.addWidget(label)
 
+    
+    def load_profile(self):
+        connection = sqlite3.connect("entries.db")
+        if connection:
+            cursor = connection.cursor()
+            cursor.execute("SELECT name, age, goal_weight, weight, height FROM entries ORDER BY rowid DESC LIMIT 1")
+            row = cursor.fetchone()
+            connection.close()
+            if row:
+                name,age,goal_weight,weight,height = row
+                self.name_lbl.setText(f"{name}")
+                self.age_lbl.setText(f"{age}")
+                self.goal_lbl.setText(f"{goal_weight}")
+                self.weight_lbl.setText(f"{weight}")
+                self.height_lbl.setText(f"{height}")
+        else:
+            print("problem w connection")
+
     def open_Scanner(self):
         self.window = Scanner()
         self.window.show()
@@ -391,10 +468,68 @@ class HoverButton(QPushButton):
         self.anim.start()
         super().leaveEvent(event)
 
+
+
 class Scanner(QMainWindow):
     def __init__(self):
         super().__init__()
+        uic.loadUi("Scanner.ui",self)
         self.window = QMainWindow()
+        genai.configure(api_key="AIzaSyDO0R3cCxvrM_G_qgIe7xzjft08OCGWRpo")
+        self.model = genai.GenerativeModel("gemini-2.5-pro")
+        self.video_label = QLabel(self.cam_frame)
+        self.video_label.setGeometry(0, 0, self.cam_frame.width(), self.cam_frame.height())
+        self.cap = cv2.VideoCapture(0)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_frame)
+        self.timer.start(30)
+        self.last_request_time = 0
+        self.search_btn.clicked.connect(self.freeze_and_scan)
+
+    def freeze_and_scan(self):
+        self.timer.stop()
+        if self.last_frame is not None:
+            self.recognize_object(self.last_frame)
+
+    def update_frame(self):
+        ret, frame = self.cap.read()
+        if ret:
+            self.last_frame = frame.copy()
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            h, w, ch = frame_rgb.shape
+            bytes_per_line = ch * w
+            img_qt = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+            pixmap = QPixmap.fromImage(img_qt)
+            self.video_label.setPixmap(pixmap.scaled(self.video_label.width(), self.video_label.height()))
+
+    def recognize_object(self, frame):
+        try:
+            pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            import io
+            img_bytes = io.BytesIO()
+            pil_image.save(img_bytes, format="JPEG")
+            img_bytes.seek(0)
+            response = self.model.generate_content(
+                [
+                    "Identify the food item and list only macros (calories, protein, carbs, fats) if possible. in the format: The item is: item_name \n Calories: \n Protein: \n Carbs: \n Fats:",
+                    {"mime_type": "image/jpeg", "data": img_bytes.read()},
+                ]
+            )
+            print("Gemini:", response.text)
+            cleaned = self.clean_markdown(response.text)
+            self.listWidget.addItem(cleaned)
+
+        
+        except Exception as e:
+            print("Gemini Error:", e)
+
+    def clean_markdown(self, text):
+        text = re.sub(r"\*\*(.*?)\*\*", r"\1", text) 
+        text = re.sub(r"[*#`>-]", "", text)          
+        return text.strip()
+
+    def closeEvent(self, event):
+        self.cap.release()
 
 
 if __name__=="__main__":
