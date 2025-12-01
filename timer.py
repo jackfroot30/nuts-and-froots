@@ -1,4 +1,4 @@
-```import sys
+import sys
 from PyQt6 import uic
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton
 from PyQt6.QtCore import QTimer, QPropertyAnimation
@@ -146,4 +146,3 @@ if __name__ == "__main__":
     w = UiTimer("timer.ui")
     w.show()
     sys.exit(app.exec())
-```
