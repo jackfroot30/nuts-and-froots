@@ -167,12 +167,12 @@ background-color:#1a1a1a;
 border-radius:30px;
 font: 600 13pt &quot;Epilogue&quot;;
 }
-QPushButton:hover{
+/*QPushButton:hover{
 background-color:#1a1a1a;
 border-radius:30px;
 padding: 15px;
 font-size: 20px
-}</string>
+}*/</string>
        </property>
        <property name="text">
         <string>Get Started</string>
