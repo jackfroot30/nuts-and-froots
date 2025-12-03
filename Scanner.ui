@@ -29,35 +29,12 @@ background-color:white;
 
 }</string>
     </property>
-    <widget class="QFrame" name="cam_frame">
-     <property name="geometry">
-      <rect>
-       <x>60</x>
-       <y>70</y>
-       <width>761</width>
-       <height>361</height>
-      </rect>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">QFrame{
-background-color: transparent;
-border:1px solid #c0c0c0;
-border-radius:10px
-}</string>
-     </property>
-     <property name="frameShape">
-      <enum>QFrame::Shape::StyledPanel</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Shadow::Raised</enum>
-     </property>
-    </widget>
     <widget class="Line" name="line">
      <property name="geometry">
       <rect>
-       <x>50</x>
-       <y>60</y>
-       <width>781</width>
+       <x>20</x>
+       <y>50</y>
+       <width>851</width>
        <height>2</height>
       </rect>
      </property>
@@ -85,44 +62,83 @@ border-radius:10px
       <string notr="true">QLabel{
 	font:600 25px &quot;Epilogue&quot;;
 	color:#1D1D1D;
-	background-color:white;
+	background-color:transparent;
 }</string>
      </property>
      <property name="text">
       <string>NutriFit</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="search_btn">
+    <widget class="QWidget" name="widget_2" native="true">
      <property name="geometry">
       <rect>
-       <x>330</x>
-       <y>450</y>
-       <width>221</width>
-       <height>51</height>
+       <x>19</x>
+       <y>80</y>
+       <width>851</width>
+       <height>621</height>
       </rect>
      </property>
      <property name="styleSheet">
-      <string notr="true">QPushButton{
+      <string notr="true">QWidget{
+background-color:#F9F9F9;
+border-radius:10px;
+border:1px solid#c0c0c0
+}</string>
+     </property>
+     <widget class="QFrame" name="cam_frame">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>20</y>
+        <width>811</width>
+        <height>321</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QFrame{
+background-color: transparent;
+border:1px solid #c0c0c0;
+border-radius:10px
+}</string>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Shape::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Shadow::Raised</enum>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="search_btn">
+      <property name="geometry">
+       <rect>
+        <x>230</x>
+        <y>350</y>
+        <width>381</width>
+        <height>51</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QPushButton{
 background-color:#1d1d1d;
 border-radius:25px;
 font:600 15px &quot;Epilogue&quot;;
 }</string>
-     </property>
-     <property name="text">
-      <string>Search</string>
-     </property>
-    </widget>
-    <widget class="QListWidget" name="listWidget">
-     <property name="geometry">
-      <rect>
-       <x>60</x>
-       <y>521</y>
-       <width>751</width>
-       <height>171</height>
-      </rect>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">QListWidget{
+      </property>
+      <property name="text">
+       <string>Search</string>
+      </property>
+     </widget>
+     <widget class="QListWidget" name="listWidget">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>410</y>
+        <width>811</width>
+        <height>191</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QListWidget{
 background-color:white;
 color:#c0c0c0;
 font:400 15px &quot;Epilogue&quot;;
@@ -132,7 +148,8 @@ padding-top: 20px;
 padding-right:20px;
 padding-left:20px
 }</string>
-     </property>
+      </property>
+     </widget>
     </widget>
    </widget>
   </widget>
