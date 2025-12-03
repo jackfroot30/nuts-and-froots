@@ -45,8 +45,8 @@ class StartScreen(QMainWindow):
         self.page_contents.setMinimumHeight(1000)
         self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.layout = QVBoxLayout(self.page_contents)
-        self.open = MainWindow()
-        self.food_scan_button.clicked.connect(self.open.open_Scanner)
+        #self.open = MainWindow()
+        #self.food_scan_button.clicked.connect(self.open.open_Scanner)
         self.show()
 
 
@@ -192,7 +192,6 @@ class MainWindow(QMainWindow):
         self.scrollArea.setWidgetResizable(True)
         self.scroll_contents.setMinimumHeight(1400)
         self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        QVBoxLayout(self.scroll_contents)
         scan_btn = self.scan_btn
         self.scan_btn = HoverButton(scan_btn.text(), scan_btn.parent())
         self.scan_btn.setGeometry(scan_btn.geometry())
@@ -222,8 +221,39 @@ class MainWindow(QMainWindow):
         self.recipe_t.show()
         self.load_profile()
         self.recipe_t.clicked.connect(lambda : self.tabWidget.setCurrentIndex(1))
-        
-
+        self.exercise_rows = []
+        self.workout_db()
+        self.muscle_groups = {
+            "Chest": ["• Bench Press", "• Incline Dumbell", "• Cable Flys"],
+            "Back": ["• Deadlift","• Lat Pulldown","• Seated Row"],
+            "Shoulder": ["• Shoulder Press", "• Lateral Raise", "• Seated Row"],
+            "Biceps": ["• Barbel Curl", "• Hammer Curl", "• Preacher Curl"],
+            "Triceps": ["• Tricpe Pushdown", "• Skull Crushers", "• Dips","• Overhead Tricep extensions","• Tricpe Extensions","• Svend Press", "• Twists"],
+            "Legs": ["• Squat", "• Leg Press","• Leg Extensions","• Calf Raises","• Lunges","• Dead lift"]
+        }
+        self.muscle_combo.addItems([
+            "Chest",
+            "Back",
+            "Legs",
+            "Shoulder",
+            "Biceps",
+            "Triceps",
+            "Legs"
+        ])
+        if self.workouts_container.layout() is None:
+            self.workouts_layout = QVBoxLayout(self.workouts_container)
+            self.workouts_layout.setContentsMargins(10, 10, 10, 10)
+            self.workouts_layout.setSpacing(10)
+        else:
+            self.workouts_layout = self.workouts_container.layout()
+        self.workouts_scroll.setWidgetResizable(True)
+        self.scrollAreaWidgetContents.setMinimumHeight(1160)
+        self.workouts_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.muscle_combo.currentTextChanged.connect(self.load_exercises_for_muscle)
+        self.add_exercise_button.clicked.connect(self.add_selected_exercise)
+        self.save_workout_button.clicked.connect(self.save_workout)
+        self.meals_layout = self.scroll_contents.layout()
+        self.view_workouts_button.clicked.connect(self.display_workout)
 
     def counters(self):
         self.rows = []
@@ -338,7 +368,8 @@ class MainWindow(QMainWindow):
         conn = sqlite3.connect("recipes.db")
         curr = conn.cursor()
         curr.execute("""
-            INSERT INTO recipe_ingredients (recipe_name, ingredient, calories, protein, carbs, fat, date)
+            INSERT INTO recipe_ingredients
+                      (recipe_name, ingredient, calories, protein, carbs, fat, date)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (recipe_name,
@@ -393,8 +424,54 @@ class MainWindow(QMainWindow):
             }
             """)
             layout.addWidget(label)
-
     
+
+    def workout_db(self):
+        conn = sqlite3.connect("workout_data.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS workouts (
+                workout_name TEXT,
+                exercise_name TEXT,
+                reps INTEGER,
+                date TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+
+    def load_todays_workouts(self):
+        layout = self.workouts_layout
+        for i in reversed(range(layout.count())):
+            item = layout.itemAt(i)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)
+            else:
+                layout.removeItem(item)
+        conn = sqlite3.connect("workout_data.db")
+        curr = conn.cursor()
+        today = date.today().isoformat()
+        curr.execute("SELECT DISTINCT workout_name FROM workouts WHERE date=?", (today,))
+        workouts = curr.fetchall()
+        conn.close()
+        if not workouts:
+            placeholder = QLabel("No workouts logged in today")
+            placeholder.setStyleSheet("font:400 18px 'Epilogue'; padding:6px; color:#1d1d1d")
+            layout.addWidget(placeholder)
+            return
+        for w in workouts:
+            label = QLabel(w[0])    
+            label.setStyleSheet("""
+            font: 400 20px "Epilogue";
+            color:#1d1d1d;
+            border-radius:10px;
+            background-color:rgb(242, 242, 242);
+            border:1px solid #c0c0c0;
+            padding: 6px;
+        """)
+        layout.addWidget(label)
+
     def load_profile(self):
         connection = sqlite3.connect("entries.db")
         if connection:
@@ -411,11 +488,78 @@ class MainWindow(QMainWindow):
                 self.height_lbl.setText(f"{height}")
         else:
             print("problem w connection")
+            
+    def load_exercises_for_muscle(self, muscle):
+        self.exercise_list.clear()
+        for exercise in self.muscle_groups.get(muscle, []):
+            self.exercise_list.addItem(exercise)
+    
+    def add_selected_exercise(self):
+        selected = self.exercise_list.currentItem()
+        if not selected:
+            return
+        exercise_name = selected.text()
+        row = WorkoutAdd(exercise_name)
+       # row.change.connect(self.update_workout_totals)
+        row.removed.connect(self.remove_workout_row)
+        self.exercise_rows.append(row)
+        self.workouts_layout.addWidget(row)
+        #self.update_workout_totals()
+    
+    def remove_workout_row(self, row):
+        self.workouts_layout.removeWidget(row)
+        self.exercise_rows.remove(row)
+        row.deleteLater()
+
+    def save_workout(self):
+        workout_group = self.workout_group_input.text().strip()
+        if workout_group == "":
+            QMessageBox.warning(self, "Error", "Enter workout group name")
+            return
+        connection = sqlite3.connect("workout_data.db")
+        cursor = connection.cursor()
+        for row in self.exercise_rows:
+            cursor.execute("""INSERT INTO workouts (workout_name, exercise_name, reps, date)
+                            VALUES (?, ?, ?, ?)""",
+                            (workout_group, row.exercise_name, row.reps_input.value(), date.today().isoformat()))
+        connection.commit()
+        connection.close()
+        QMessageBox.information(self, "Saved", "Workout saved!")
+        self.load_todays_workouts()
+
+    """def update_workout_totals(self):
+        total_sets = 0
+        total_reps = 0
+        total_weight = 0
+        for i in range(self.workouts_layout.count()):
+            row = self.workouts_layout.itemAt(i).widget()
+            if row is None:
+                continue
+            sets_value = row.sets_input.value()
+            reps_value = row.reps_input.value()
+            weight_value = row.weight_input.value()
+            total_sets += sets_value
+            total_reps += reps_value
+            total_weight += (sets_value * reps_value * weight_value)
+        print("Total Sets:", total_sets)
+        print("Total Reps:", total_reps)
+        print("Total Weight Volume:", total_weight)
+        self.total_sets_label.setText(str(total_sets))
+        self.total_reps_label.setText(str(total_reps))
+        self.total_volume_label.setText(str(total_weight))"""
+
+
 
     def open_Scanner(self):
         self.window = Scanner()
         self.window.show()
         self.hide()
+
+    def display_workout(self):
+        self.work_diplay = DisplayWorkout()
+        self.work_diplay.show()
+
+
 
 class IngredientAdd(QWidget):
     change = pyqtSignal()
@@ -444,6 +588,74 @@ class IngredientAdd(QWidget):
         self.unit_lbl.setMaximumHeight(40)
         layout.addWidget(self.remove_btn)
 
+
+class WorkoutAdd(QWidget):
+    change = pyqtSignal()
+    removed = pyqtSignal(QWidget)
+    def __init__(self, exercise_name, parent=None):
+        super().__init__(parent)
+        self.exercise_name = exercise_name
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 5, 0, 5)
+        layout.setSpacing(10)
+        common_style = """
+            color:#1d1d1d; 
+            font:400 15px 'Epilogue';
+        """
+        spin_style = """
+            color:#1d1d1d;
+            font:400 15px 'Epilogue';
+            background-color:#f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        """
+        self.lbl = QLabel(exercise_name)
+        self.lbl.setStyleSheet(common_style)
+        self.lbl.setMaximumHeight(25)
+        layout.addWidget(self.lbl)
+        self.sets_input = QSpinBox()
+        self.sets_input.setMinimum(1)
+        self.sets_input.setMaximum(20)
+        self.sets_input.valueChanged.connect(self.change.emit)
+        self.sets_input.setMaximumHeight(25)
+        self.sets_input.setStyleSheet(spin_style)
+        layout.addWidget(self.sets_input)
+        self.sets_lbl = QLabel("sets")
+        self.sets_lbl.setStyleSheet(common_style)
+        self.sets_lbl.setMaximumHeight(25)
+        layout.addWidget(self.sets_lbl)
+        self.reps_input = QSpinBox()
+        self.reps_input.setMinimum(1)
+        self.reps_input.setMaximum(50)
+        self.reps_input.valueChanged.connect(self.change.emit)
+        self.reps_input.setMaximumHeight(25)
+        self.reps_input.setStyleSheet(spin_style)
+        layout.addWidget(self.reps_input)
+        self.reps_lbl = QLabel("reps")
+        self.reps_lbl.setStyleSheet(common_style)
+        self.reps_lbl.setMaximumHeight(25)
+        layout.addWidget(self.reps_lbl)
+        self.weight_input = QSpinBox()
+        self.weight_input.setMinimum(0)
+        self.weight_input.setMaximum(500)
+        self.weight_input.valueChanged.connect(self.change.emit)
+        self.weight_input.setMaximumHeight(25)
+        self.weight_input.setStyleSheet(spin_style)
+        layout.addWidget(self.weight_input)
+        self.weight_lbl = QLabel("weight")
+        self.weight_lbl.setStyleSheet(common_style)
+        self.weight_lbl.setMaximumHeight(25)
+        layout.addWidget(self.weight_lbl)
+        self.kg_lbl = QLabel("kg")
+        self.kg_lbl.setStyleSheet(common_style)
+        self.kg_lbl.setMaximumHeight(25)
+        layout.addWidget(self.kg_lbl)
+        self.rem_btn = QPushButton("Remove")
+        self.rem_btn.clicked.connect(lambda: self.removed.emit(self))
+        self.rem_btn.setStyleSheet(common_style)
+        self.rem_btn.setMaximumHeight(25)
+        layout.addWidget(self.rem_btn)
+
 class HoverButton(QPushButton):
     def __init__(self,*args):
         super().__init__(*args)
@@ -469,7 +681,6 @@ class HoverButton(QPushButton):
         super().leaveEvent(event)
 
 
-
 class Scanner(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -485,6 +696,7 @@ class Scanner(QMainWindow):
         self.timer.start(30)
         self.last_request_time = 0
         self.search_btn.clicked.connect(self.freeze_and_scan)
+
 
     def freeze_and_scan(self):
         self.timer.stop()
@@ -518,7 +730,6 @@ class Scanner(QMainWindow):
             print("Gemini:", response.text)
             cleaned = self.clean_markdown(response.text)
             self.listWidget.addItem(cleaned)
-
         
         except Exception as e:
             print("Gemini Error:", e)
@@ -530,6 +741,38 @@ class Scanner(QMainWindow):
 
     def closeEvent(self, event):
         self.cap.release()
+
+class DisplayWorkout(QWidget):
+    def __init__(self):
+        super().__init__()
+        uic.loadUi("workouts.ui", self)
+        self.load_workout_in_new_window()
+        self.load_names_of_exercises()
+        self.workout_name_list.currentIndexChanged.connect(self.load_names_of_exercises)
+        self.goback_btn.clicked.connect(self.hide)
+
+
+    def load_workout_in_new_window(self):
+        conn = sqlite3.connect("workout_data.db")
+        curr1 = conn.cursor()
+        today = date.today().isoformat()
+        curr1.execute("SELECT DISTINCT workout_name FROM workouts WHERE date=?", (today,))
+        workout= curr1.fetchall()
+        conn.close()
+        self.workout_name_list.clear()
+        for (name,) in workout:
+            self.workout_name_list.addItem(name)
+    
+    def load_names_of_exercises(self):
+        conn = sqlite3.connect("workout_data.db")
+        curr2 = conn.cursor()
+        name = self.workout_name_list.currentText()
+        self.workout_disp_widget.clear()
+        print(name)
+        curr2.execute("SELECT DISTINCT exercise_name, reps FROM workouts WHERE workout_name=?",(name,))
+        data = curr2.fetchall()
+        for exercise, reps in data:
+            self.workout_disp_widget.addItem(f"{exercise} - {reps} reps")
 
 
 if __name__=="__main__":
