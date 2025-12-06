@@ -1,7 +1,7 @@
 import sys
 from PyQt5 import (uic, QtWidgets)
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QGraphicsView, QGraphicsOpacityEffect,QLabel,QPushButton, QVBoxLayout, QHBoxLayout)
-from PyQt5.QtCore import QTimer, QTime, Qt, QPropertyAnimation, QEvent, QRect, QEasingCurve, QSequentialAnimationGroup
+from PyQt5.QtCore import QTimer, QTime, Qt, QPropertyAnimation, QEvent, QRect, QEasingCurve, QSequentialAnimationGroup, QPauseAnimation, QAbstractAnimation
 from PyQt5.QtTest import QTest
 
 
@@ -11,13 +11,13 @@ class Stopwatch(QMainWindow):
         uic.loadUi(ui_path,self)
         self.tabWidget.setCurrentIndex(3)
         self.time = QTime(0,0,1,0)
-        # self.time_1 = QTime(0,0,1,0)
+        self.time_1 = QTime(0,0,1,0)
         self.time_1 = QTime(0,0,1,0)
         self.btime = QTime(0,0,0,0)
         self.timer = QTimer(self)
         self.timer.setInterval(10)
         self.timer_1 = QTimer(self)
-        # self.timer_1.setInterval(10)
+        self.timer_1.setInterval(10)
         self.timer_1.setInterval(12000)
         self.btimer = QTimer(self)
         self.btimer.setInterval(4000)
@@ -54,18 +54,24 @@ class Stopwatch(QMainWindow):
         self.prog_lbl_4.setText("Breathe In")
 
     def start(self):
-        QTest.qWait(1000)   # fuck ai
-        self.timer.start()
+        QTimer.singleShot(1000, self.start1)
+
+    def start1(self):
+        self.time = QTime(0, 0, 1, 0)
+        self.btime = QTime(0, 0, 0, 0)
+        self.prog_lbl_8.setText(self.format_time(self.time))
+        self.cycles = 0
+
+        self.timer.start()    
         self.btimer.start()
-        self.timer_1.start()
-        self.circ_anim(duration=4000)
+
+        loops = int(self.spinBox_2.value())*5
+        self.circ_anim(loop_count=loops, ms=4000)
         
     def stop(self):
         self.timer.stop()
         self.btimer.stop()
         self.timer_1.stop()
-        if hasattr(self, "anim_group"): 
-            self.anim_group.stop()
 
     def reset(self):
         self.timer.stop()
@@ -111,45 +117,80 @@ class Stopwatch(QMainWindow):
             w = self.label_2.width()
             h = self.label_2.height()
             side = min(w, h)
-            if (w != side) or (h != side):
-                self.label_2.resize(side, side)
-            self.label_2.setStyleSheet(f"background-color: rgba(100,150,250,180); border-radius: {side//2}px;")
+
+            self.label_2.setStyleSheet("""
+                background-color: qradialgradient(
+                                       spread:pad, 
+                                       cx:0.5, 
+                                       cy:0.5,
+                                       radius:0.8, 
+                                       fx:0.5, 
+                                       fy:0.5, 
+                                       stop:0 #FFD5D5, 
+                                       stop:0.26 #FFB5B5, 
+                                       stop:1 #FFD5F6); 
+                border:0px; 
+                border-radius: {side//2}px;
+            """)
         return super().eventFilter(source, event)
     
     #285,270,300,300
 
-    def circ_anim(self, duration=4000, expand_pixels=40):
+    def circ_anim(self, loop_count=1, ms=4000):
+        if hasattr(self, "anim_group") and self.anim_group is not None:
+            try:
+                self.anim_group.stop()
+            except Exception:
+                pass
+
         start_rect = self.label_2.geometry()
-        
         side = min(start_rect.width(), start_rect.height())
         cx = start_rect.center().x()
         cy = start_rect.center().y()
         start_rect = QRect(cx - side//2, cy - side//2, side, side)
-
-        end_rect = QRect(
-            start_rect.x() - 285 // 2,
-            start_rect.y() - 270 // 2,
-            start_rect.width() + 300,
-            start_rect.height() + 300
-        )
-
+        end_side = side + 250
+        end_rect = QRect(cx - end_side//2, cy - end_side//2, end_side, end_side)
         anim_expand = QPropertyAnimation(self.label_2, b"geometry")
-        anim_expand.setDuration(duration // 2)
+        anim_expand.setDuration(ms)
         anim_expand.setStartValue(start_rect)
         anim_expand.setEndValue(end_rect)
         anim_expand.setEasingCurve(QEasingCurve.InOutQuad)
-
+        pause = QPauseAnimation(ms)
         anim_contract = QPropertyAnimation(self.label_2, b"geometry")
-        anim_contract.setDuration(duration // 2)
+        anim_contract.setDuration(ms)
         anim_contract.setStartValue(end_rect)
         anim_contract.setEndValue(start_rect)
         anim_contract.setEasingCurve(QEasingCurve.InOutQuad)
-
+        anim_expand.valueChanged.connect(self.update_circle_radius)
+        anim_contract.valueChanged.connect(self.update_circle_radius)
         self.anim_group = QSequentialAnimationGroup(self)
         self.anim_group.addAnimation(anim_expand)
+        self.anim_group.addAnimation(pause)
         self.anim_group.addAnimation(anim_contract)
-        self.anim_group.setLoopCount(-1)  # infinite loop
+        self.anim_group.setLoopCount(loop_count)
+        if hasattr(self.anim_group, "currentLoopChanged"):
+            self.anim_group.currentLoopChanged.connect(self.on_loop_changed)
+        self.anim_group.finished.connect(self.on_anim_finished)
         self.anim_group.start()
+
+    def update_circle_radius(self, _value):
+        w = self.label_2.width()
+        h = self.label_2.height()
+        side = min(w, h)
+        self.label_2.setStyleSheet(
+            f"background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, "
+            f"radius:0.8, fx:0.5, fy:0.5, stop:0 #FFD5D5, stop:0.26 #FFB5B5, stop:1 #FFD5F6); "
+            f"border:0px; border-radius: {side//2}px;"
+        )
+
+    def on_loop_changed(self, loop_index):
+        current_cycle = loop_index
+        self.prog_lbl_10.setText(f"Number of Cycles Completed: {current_cycle:02}")
+
+    def on_anim_finished(self):
+        self.stop()
+        self.prog_lbl_10.setText(f"Number of Cycles completed: {self.spinBox_2.value()*5:02}")
+        self.prog_lbl_7.setText("Done")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
